@@ -1,0 +1,7 @@
+[alias]
+sine = "run -p desktop --release --bin sine"
+sine-train = "run -p desktop --release --bin sine-train"
+gesture = "run -p desktop --release --bin gesture"
+keywords = "run -p desktop --release --bin keywords"
+tinystories = "run -p desktop --release --bin tinystories"
+web = "run -p serve --release --"

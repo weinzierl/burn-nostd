@@ -1,0 +1,11 @@
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+# With a debug probe (e.g. the Raspberry Pi Debug Probe):
+runner = "probe-rs run --chip RP235x"
+# Without one, hold BOOTSEL while plugging in, then:
+# runner = "picotool load -u -v -x -t elf"
+
+[build]
+target = "thumbv8m.main-none-eabihf" # Cortex-M33 with FPU
+
+[env]
+DEFMT_LOG = "info"

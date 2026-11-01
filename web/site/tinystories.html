@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Step 4: a pretrained language model</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header class="top">
+  <a href="index.html">Burn without std</a>
+  <nav aria-label="Steps">
+    <a href="sine.html"><b>1</b>Inference</a>
+    <a href="gesture.html"><b>2</b>Training</a>
+    <a href="keywords.html"><b>3</b>Signals</a>
+    <a href="tinystories.html" aria-current="page"><b>4</b>Language model</a>
+  </nav>
+  </header>
+  <p class="step">Step 4 of 4 · A pretrained language model</p>
+  <h1>A language model that fits a microcontroller.</h1>
+  <p class="lede">Karpathy’s TinyStories 260K, the unchanged llama2.c checkpoint, on Burn in no_std WebAssembly.
+    In the Raspberry Pi Pico 2 firmware the same crate reads the 1 MB of weights straight from flash (tested in QEMU, not yet on a board).
+    At temperature 0 it writes the same text as llama2.c (checked for 80 steps). Right: what the model weighed for the latest token.</p>
+  <section style="display:grid;grid-template-columns:repeat(12,1fr);column-gap:24px;row-gap:16px;align-items:end">
+    <div style="grid-column:1/span 6"><label for="prompt">Story start</label><input id="prompt" type="text" value="Once upon a time" maxlength="120"></div>
+    <div style="grid-column:7/span 3"><label for="temp">Temperature <span id="temp-value">0.0</span></label><input id="temp" type="range" min="0" max="1.5" step="0.1" value="0"></div>
+    <div style="grid-column:10/-1"><button id="go" class="primary" style="width:100%" disabled>Write a story</button></div>
+  </section>
+  <section class="split" style="align-items:start">
+    <div>
+      <label class="note" style="display:flex;gap:8px;align-items:center"><input id="show-tokens" type="checkbox" checked> Show tokens</label>
+      <div id="story" class="tokens" aria-live="polite"></div>
+    </div>
+    <div><h2>Next token, top 5</h2><div class="probs" id="candidates"></div></div>
+  </section>
+  <section class="stats">
+    <div class="stat"><b id="bytes">…</b><small>bytes of weights, used in place</small></div>
+    <div class="stat"><b id="tokens">…</b><small>tokens written</small></div>
+    <div class="stat"><b id="rate">…</b><small>tokens per second</small></div>
+    <div class="stat"><b>260 K</b><small>parameters, 5 layers, 512 tokens</small></div>
+  </section>
+  <p id="error" class="error" hidden></p>
+  <footer><span>Burn 0.22 · <code>#![no_std]</code> · zero imports</span><span>Code: <a href="https://github.com/weinzierl/burn-nostd">github.com/weinzierl/burn-nostd</a></span></footer>
+</main>
+<script src="app.js"></script>
+<script>
+let w, busy = false;
+const decoder = new TextDecoder(), showCandidates = bars($("candidates"), ["", "", "", "", ""]);
+const text = (len) => { const ptr = w.output(); return decoder.decode(new Uint8Array(w.memory.buffer, ptr, len)); };
+
+$("temp").addEventListener("input", () => ($("temp-value").textContent = parseFloat($("temp").value).toFixed(1)));
+$("show-tokens").addEventListener("change", (e) => $("story").classList.toggle("tokens", e.target.checked));
+
+function candidates() {
+  const names = [], probs = [];
+  for (let i = 0; i < 5; i++) {
+    const raw = text(w.candidate_text(i));
+    names.push(raw.includes("<s>") ? "end of story" : raw.replace(/\n/g, "↵").replace(/^ +$/, "␣"));
+    probs.push(w.candidate_probability(i));
+  }
+  showCandidates(probs, names);
+}
+
+async function write() {
+  if (busy) return;
+  busy = true; $("go").disabled = true;
+  const story = $("story");
+  story.replaceChildren();
+  const bytes = new TextEncoder().encode($("prompt").value);
+  const ptr = w.prompt(bytes.length); // may grow memory: pointer before view
+  new Uint8Array(w.memory.buffer, ptr, bytes.length).set(bytes);
+  w.start(parseFloat($("temp").value), (Math.random() * 2 ** 31) | 1);
+
+  const t0 = performance.now();
+  let n = 0;
+  const show = () => {
+    $("tokens").textContent = group(n);
+    $("rate").textContent = group(Math.round(n / ((performance.now() - t0) / 1000)));
+    candidates();
+  };
+  for (;;) {
+    const fromPrompt = w.reading_prompt(), len = w.step();
+    if (len < 0) break;
+    const piece = document.createElement("span");
+    piece.textContent = text(len);
+    if (fromPrompt && w.reading_prompt()) piece.className = "prompt-text"; else n++;
+    story.append(piece);
+    if (n % 4 === 0) { show(); await frame(); }
+  }
+  show();
+  busy = false; $("go").disabled = false;
+}
+
+$("go").addEventListener("click", write);
+$("prompt").addEventListener("keydown", (e) => e.key === "Enter" && write());
+
+(async () => {
+  w = await loadModule("tinystories");
+  $("bytes").textContent = group(w.init());
+  $("go").disabled = false;
+  write();
+})().catch(fail);
+</script>
+</body>
+</html>

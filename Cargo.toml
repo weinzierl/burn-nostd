@@ -1,0 +1,32 @@
+[workspace]
+resolver = "3"
+members = ["adam", "1-sine", "2-gesture", "3-keywords", "4-tinystories", "desktop", "serve"]
+# Cross-compiled targets have their own workspace, target and Cargo.lock.
+exclude = ["web", "pico2", "qemu"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+burn = { version = "=0.22.0", default-features = false }
+libm = "0.2"
+adam = { path = "adam" }
+
+# The desktop binaries are no_std: there is no unwinder.
+[profile.dev]
+panic = "abort"
+opt-level = 1
+
+[profile.release]
+panic = "abort"
+lto = true
+codegen-units = 1
+
+# Burn 0.22 reaches std (hosted targets) or wasm-bindgen (wasm32) through
+# cubecl-environment. See shims/README.md.
+[patch.crates-io]
+web-time = { path = "shims/web-time" }
+wasm-bindgen-futures = { path = "shims/wasm-bindgen-futures" }

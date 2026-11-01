@@ -1,0 +1,13 @@
+heard left
+heard no
+heard left
+heard right
+heard yes
+heard no
+heard left
+heard right
+heard yes
+heard no
+heard left
+heard right
+keywords: 11/12 correct, heap peak 217340 bytes

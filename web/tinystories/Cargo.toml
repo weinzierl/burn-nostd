@@ -1,0 +1,15 @@
+[package]
+name = "tinystories-web"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+tinystories = { path = "../../4-tinystories" }
+burn.workspace = true
+rt.workspace = true
+libm = "0.2"

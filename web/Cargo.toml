@@ -1,0 +1,28 @@
+# WebAssembly builds of the four steps: no_std, no wasm-bindgen, zero imports.
+[workspace]
+resolver = "3"
+members = ["rt", "sine", "gesture", "keywords", "tinystories"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+burn = { version = "=0.22.0", default-features = false }
+rt = { path = "rt" }
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+lto = true
+codegen-units = 1
+
+[profile.dev]
+panic = "abort"
+
+# See ../shims/README.md.
+[patch.crates-io]
+web-time = { path = "../shims/web-time" }
+wasm-bindgen-futures = { path = "../shims/wasm-bindgen-futures" }

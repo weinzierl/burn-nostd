@@ -1,0 +1,1 @@
+sine: max error 0.01757598, heap 3580 bytes, heap peak 7888 bytes

@@ -1,0 +1,11 @@
+[package]
+name = "sine"
+description = "Step 1: inference with embedded weights"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+burn = { workspace = true, features = ["flex", "store"] }
+libm.workspace = true

@@ -1,0 +1,6 @@
+epoch 1000: mse 0.000651
+epoch 2000: mse 0.000035
+epoch 3000: mse 0.000033
+epoch 4000: mse 0.000031
+wrote 2564 bytes to /home/claude/talk/rustlab-burn-candle/burn-nostd/desktop/../1-sine/weights/sine.bpk; `cargo sine` embeds them
+sine.bpk before a0826dac3385b297b2cb1c39789c1296c835c27168954689b8b078b5880cdcb2 after a0826dac3385b297b2cb1c39789c1296c835c27168954689b8b078b5880cdcb2

@@ -1,0 +1,25 @@
+target/thumbv8m.main-none-eabihf/release/sine  :
+.text                1791572   268435772
+.rodata                61232   270227456
+.data                    192   536870912
+.bss                  265888   536871104
+target/thumbv8m.main-none-eabihf/release/gesture  :
+.text                1689876   268435772
+.rodata                56456   270125656
+.data                    192   536870912
+.bss                  268656   536871104
+target/thumbv8m.main-none-eabihf/release/keywords  :
+.text                1709716   268435772
+.rodata                74400   270145496
+.data                    192   536870912
+.bss                  285848   536871104
+target/thumbv8m.main-none-eabihf/release/tinystories  :
+.text               1334264   268435772
+.rodata             1106120   269770048
+.data                   192   536870912
+.bss                 265576   536871104
+target/thumbv8m.main-none-eabihf/release/tinystories-usb  :
+.text               1358496   268435772
+.rodata             1108968   269794288
+.data                   192   536870912
+.bss                 271736   536871104

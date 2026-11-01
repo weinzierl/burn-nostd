@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Step 2: training on the device</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header class="top">
+  <a href="index.html">Burn without std</a>
+  <nav aria-label="Steps">
+    <a href="sine.html"><b>1</b>Inference</a>
+    <a href="gesture.html" aria-current="page"><b>2</b>Training</a>
+    <a href="keywords.html"><b>3</b>Signals</a>
+    <a href="tinystories.html"><b>4</b>Language model</a>
+  </nav>
+  </header>
+  <p class="step">Step 2 of 4 · Training on the device</p>
+  <h1>Teach it a gesture.</h1>
+  <p class="lede">An untrained network learns from your phone’s motion sensor: autodiff and Adam in no_std
+    WebAssembly, the same crate the Raspberry Pi Pico 2 firmware uses. No phone at hand? Simulate one.</p>
+  <section>
+    <h2>Sensor</h2>
+    <div class="row">
+      <button id="start" class="primary">Start motion sensor</button>
+      <label class="note" for="sim" style="margin:0">or simulate</label>
+      <select id="sim">
+        <option value="-1">off</option><option value="0">rest</option><option value="1">shake</option>
+        <option value="2">circle</option><option value="3">punch</option>
+      </select>
+      <span class="note" id="status">Sensor off.</span>
+    </div>
+    <canvas id="trace" style="margin-top:12px" aria-label="Acceleration over the last second"></canvas>
+  </section>
+  <section>
+    <h2>1. Record each gesture five times. A recording is one second.</h2>
+    <div class="cards" id="classes"></div>
+  </section>
+  <section class="split">
+    <div>
+      <h2>2. Train on this device</h2>
+      <div class="row">
+        <button id="train" class="primary" disabled>Train</button>
+        <button id="reset">Start over</button>
+        <span class="note" id="progress">Record three examples of two gestures first.</span>
+      </div>
+    </div>
+    <div><label>Training loss, log scale</label><canvas id="loss" aria-label="Training loss"></canvas></div>
+  </section>
+  <section class="split">
+    <div><h2>3. Perform a gesture</h2><div class="big" id="prediction">…</div></div>
+    <div class="probs" id="probs" aria-live="polite"></div>
+  </section>
+  <section class="stats">
+    <div class="stat"><b id="examples">0</b><small>examples</small></div>
+    <div class="stat"><b id="time">…</b><small>training, 15 epochs</small></div>
+    <div class="stat"><b id="final">…</b><small>final loss</small></div>
+    <div class="stat"><b id="latency">…</b><small>per classification</small></div>
+  </section>
+  <p id="error" class="error" hidden></p>
+  <footer><span>Burn 0.22 · <code>#![no_std]</code> · zero imports</span><span>Code: <a href="https://github.com/weinzierl/burn-nostd">github.com/weinzierl/burn-nostd</a></span></footer>
+</main>
+<script src="app.js"></script>
+<script>
+const NAMES = ["Rest", "Shake", "Circle", "Punch"], PER_CLASS = 5, EPOCHS = 15, HZ = 50;
+let w, sensor = null, counts = [0, 0, 0, 0], trained = false, recording = false, losses = [];
+const trace = [], showProbs = bars($("probs"), NAMES);
+
+function onMotion(e) {
+  const a = e.accelerationIncludingGravity, r = e.rotationRate;
+  if (a && a.x != null) sensor = [a.x / 9.81, a.y / 9.81, a.z / 9.81, r?.beta ?? 0, r?.gamma ?? 0, r?.alpha ?? 0];
+}
+
+$("start").addEventListener("click", async () => {
+  try {
+    if (typeof DeviceMotionEvent?.requestPermission === "function" && (await DeviceMotionEvent.requestPermission()) !== "granted") {
+      throw new Error("permission denied");
+    }
+    addEventListener("devicemotion", onMotion);
+    setTimeout(() => { if (!sensor) $("status").textContent = "No motion sensor here: open this page on a phone, or simulate."; }, 1500);
+  } catch (err) {
+    $("status").textContent = `No motion sensor (${err.message}). Simulate instead.`;
+  }
+});
+
+// The same gestures as gesture::synth in Rust.
+let simT = 0;
+const simPhase = Math.random() * 6.28;
+function simulate(c) {
+  const n = () => Math.random() * 2 - 1, t = simT++ / HZ;
+  let g = [0, 0, 0, 0, 0, 0];
+  if (c === 1) { const s = Math.sin(6.28 * 5 * t + simPhase); g = [1.2 * s, 0, 0, 180 * s, 0, 0]; }
+  if (c === 2) { const p = 6.28 * 1.5 * t + simPhase; g = [0.6 * Math.cos(p), 0.6 * Math.sin(p), 0, 0, 0, 120]; }
+  if (c === 3) { const d = simT % 50; g = [0, d < 4 ? 2.5 : d < 8 ? -1.5 : 0, 0, 0, 0, 0]; }
+  return [g[0] + 0.05 * n(), g[1] + 0.05 * n(), g[2] + 1 + 0.05 * n(), g[3] + 5 * n(), g[4] + 5 * n(), g[5] + 5 * n()];
+}
+
+function tick() {
+  const sim = parseInt($("sim").value, 10), s = sim >= 0 ? simulate(sim) : sensor;
+  if (!s) return;
+  $("status").textContent = sim >= 0 ? `Simulating “${NAMES[sim].toLowerCase()}”.` : "Motion sensor live.";
+  w.push(...s);
+  trace.push(s);
+  if (trace.length > HZ) trace.shift();
+}
+
+function render() {
+  $("classes").innerHTML = NAMES.map((n, i) => `
+    <div class="card"><b>${n}</b>
+      <div class="dots">${Array.from({ length: PER_CLASS }, (_, k) => `<i class="${k < counts[i] ? "on" : ""}"></i>`).join("")}</div>
+      <div class="bar"><div id="rec-${i}"></div></div>
+      <button data-c="${i}" ${counts[i] >= PER_CLASS || recording ? "disabled" : ""}>Record ${n.toLowerCase()}</button>
+    </div>`).join("");
+  $("classes").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => record(+b.dataset.c)));
+  $("train").disabled = recording || counts.filter((c) => c >= 3).length < 2;
+  $("examples").textContent = counts.reduce((a, b) => a + b, 0);
+}
+
+function record(c) {
+  if (!sensor && parseInt($("sim").value, 10) < 0) { $("status").textContent = "Start the sensor or pick a simulated gesture first."; return; }
+  recording = true; render();
+  const t0 = performance.now();
+  const step = () => {
+    const f = Math.min(1, (performance.now() - t0) / 1000);
+    $(`rec-${c}`).style.width = `${f * 100}%`;
+    if (f < 1) return requestAnimationFrame(step);
+    w.enroll(c); counts[c]++; recording = false; render();
+  };
+  requestAnimationFrame(step);
+}
+
+$("train").addEventListener("click", async () => {
+  $("train").disabled = true;
+  const t0 = performance.now();
+  losses = [];
+  for (let e = 1; e <= EPOCHS; e++) {
+    losses.push(w.train(1));
+    chart($("loss"), 64, losses, true);
+    $("progress").textContent = `Epoch ${e} of ${EPOCHS}, loss ${losses.at(-1).toFixed(3)}`;
+    await frame();
+  }
+  $("time").textContent = `${Math.round(performance.now() - t0)} ms`;
+  $("final").textContent = losses.at(-1).toFixed(3);
+  $("progress").textContent = "Trained. More examples and another round improve it.";
+  trained = true; render();
+});
+
+$("reset").addEventListener("click", () => {
+  w.reset(); counts = [0, 0, 0, 0]; trained = false; losses = [];
+  $("prediction").textContent = "…"; showProbs([]);
+  for (const id of ["time", "final", "latency"]) $(id).textContent = "…";
+  $("progress").textContent = "Record three examples of two gestures first.";
+  chart($("loss"), 64, losses, true);
+  render();
+});
+
+function classify() {
+  if (!trained || recording) return;
+  // Browsers round timers to 0.1 ms: average 20 runs.
+  const t0 = performance.now();
+  let n = 0;
+  for (let i = 0; i < 20; i++) n = w.classify();
+  const us = ((performance.now() - t0) * 1000) / 20;
+  if (!n) return;
+  const p = Array.from({ length: n }, (_, i) => w.probability(i));
+  $("prediction").textContent = NAMES[p.indexOf(Math.max(...p))];
+  showProbs(p);
+  $("latency").textContent = `${us.toFixed(0)} µs`;
+}
+
+function draw() {
+  const { g, width: W, height: H } = surface($("trace"), 90);
+  g.strokeStyle = css("--rule"); g.lineWidth = 1; g.beginPath(); g.moveTo(0, H / 2); g.lineTo(W, H / 2); g.stroke();
+  [css("--accent"), css("--ink"), css("--muted")].forEach((color, axis) => {
+    g.strokeStyle = color; g.lineWidth = axis ? 1.5 : 3; g.beginPath();
+    trace.forEach((s, i) => {
+      const v = Math.max(-2, Math.min(2, s[axis] - (axis === 2 ? 1 : 0)));
+      const x = (i / (HZ - 1)) * W, y = H / 2 - v * (H / 4.4);
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    });
+    g.stroke();
+  });
+  requestAnimationFrame(draw);
+}
+
+(async () => {
+  w = await loadModule("gesture");
+  render(); showProbs([]); chart($("loss"), 64, losses, true);
+  setInterval(tick, 1000 / HZ);
+  setInterval(classify, 250);
+  requestAnimationFrame(draw);
+})().catch(fail);
+</script>
+</body>
+</html>

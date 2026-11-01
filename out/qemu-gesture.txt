@@ -1,0 +1,1 @@
+gesture: loss 0.032053664, 100/100 correct, heap after training 26304 bytes, heap peak 42468 bytes

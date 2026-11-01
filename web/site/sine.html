@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Step 1: inference</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header class="top">
+  <a href="index.html">Burn without std</a>
+  <nav aria-label="Steps">
+    <a href="sine.html" aria-current="page"><b>1</b>Inference</a>
+    <a href="gesture.html"><b>2</b>Training</a>
+    <a href="keywords.html"><b>3</b>Signals</a>
+    <a href="tinystories.html"><b>4</b>Language model</a>
+  </nav>
+  </header>
+  <p class="step">Step 1 of 4 · Inference</p>
+  <h1>sin(x), learned.</h1>
+  <p class="lede">A 321-parameter network with its weights embedded in a no_std WebAssembly module.
+    Every point of the blue curve is one forward pass in your browser. “Watch it learn” replays the
+    training that produced the weights, from random numbers, with autodiff and Adam in the same module.</p>
+  <section>
+    <div class="row">
+      <button id="learn" class="primary">Watch it learn</button>
+      <button id="embedded">Embedded weights</button>
+      <span class="note" id="status"></span>
+    </div>
+    <canvas id="plot" style="margin-top:16px" aria-label="sin(x) and the model’s output from 0 to 2π"></canvas>
+    <div class="row note" style="margin-top:8px;gap:24px">
+      <span><span style="display:inline-block;width:24px;border-top:3px solid var(--accent);vertical-align:middle;margin-right:8px"></span>model(x)</span>
+      <span><span style="display:inline-block;width:24px;border-top:1px solid var(--ink);vertical-align:middle;margin-right:8px"></span>sin(x)</span>
+    </div>
+  </section>
+  <section class="split">
+    <div>
+      <label for="x">Pick x</label>
+      <input id="x" type="range" min="0" max="6.2832" step="0.001" value="2.2">
+      <p id="readout" style="margin-top:8px;font-size:20px;white-space:pre"></p>
+    </div>
+    <div><label>Training loss, log scale</label><canvas id="loss" aria-label="Training loss"></canvas></div>
+  </section>
+  <section class="stats" aria-live="polite">
+    <div class="stat"><b id="bytes">…</b><small>bytes of embedded weights</small></div>
+    <div class="stat"><b id="time">…</b><small>per inference</small></div>
+    <div class="stat"><b id="err">…</b><small>largest error, 200 points</small></div>
+    <div class="stat"><b id="epoch">0</b><small>training epochs in this browser</small></div>
+  </section>
+  <p id="error" class="error" hidden></p>
+  <footer><span>Burn 0.22 · <code>#![no_std]</code> · zero imports</span><span>Code: <a href="https://github.com/weinzierl/burn-nostd">github.com/weinzierl/burn-nostd</a></span></footer>
+</main>
+<script src="app.js"></script>
+<script>
+const TAU = 2 * Math.PI, N = 200, EPOCHS = 2000;
+const xs = Array.from({ length: N }, (_, i) => (TAU * i) / (N - 1));
+let w, refs, ys, losses = [], training = false;
+
+function draw() {
+  const { g, width: W, height: H } = surface($("plot"), Math.round($("plot").clientWidth * 0.36));
+  const pad = 28, sx = (x) => pad + (x / TAU) * (W - 2 * pad), sy = (y) => H / 2 - y * (H / 2 - pad);
+  g.strokeStyle = css("--rule"); g.lineWidth = 1;
+  for (let k = 0; k <= 4; k++) { g.beginPath(); g.moveTo(sx((k * TAU) / 4), 6); g.lineTo(sx((k * TAU) / 4), H - 20); g.stroke(); }
+  for (const y of [-1, 0, 1]) { g.beginPath(); g.moveTo(pad, sy(y)); g.lineTo(W - pad, sy(y)); g.stroke(); }
+  g.fillStyle = css("--muted"); g.font = `13px ${css("--font")}`;
+  ["0", "π/2", "π", "3π/2", "2π"].forEach((t, k) => g.fillText(t, sx((k * TAU) / 4) + 4, H - 4));
+  const line = (values, color, width) => {
+    g.strokeStyle = color; g.lineWidth = width; g.beginPath();
+    xs.forEach((x, i) => (i ? g.lineTo(sx(x), sy(values[i])) : g.moveTo(sx(x), sy(values[i]))));
+    g.stroke();
+  };
+  line(refs, css("--ink"), 1);
+  line(ys, css("--accent"), 3);
+  const x = parseFloat($("x").value), y = w.predict(x);
+  g.fillStyle = css("--accent"); g.beginPath(); g.arc(sx(x), sy(y), 6, 0, TAU); g.fill();
+  $("readout").textContent = `x = ${x.toFixed(3)}    sin(x) = ${Math.sin(x).toFixed(4)}    model(x) = ${y.toFixed(4)}`;
+  $("err").textContent = Math.max(...ys.map((v, i) => Math.abs(v - refs[i]))).toFixed(4);
+  chart($("loss"), 64, losses, true);
+}
+
+function evaluate() {
+  const t0 = performance.now();
+  ys = xs.map(w.predict);
+  $("time").textContent = `${(((performance.now() - t0) * 1000) / N).toFixed(1)} µs`;
+}
+
+async function learn() {
+  training = true; losses = [];
+  w.train_start((Math.random() * 2 ** 31) | 1);
+  while (training && w.epoch() < EPOCHS) {
+    losses.push(w.train(10));
+    evaluate(); draw();
+    $("epoch").textContent = group(w.epoch());
+    $("status").textContent = `From random weights: epoch ${group(w.epoch())} of ${group(EPOCHS)}, loss ${losses.at(-1).toExponential(2)}`;
+    await frame();
+  }
+  if (training) $("status").textContent = `Trained here in ${group(EPOCHS)} epochs, loss ${losses.at(-1).toExponential(2)}.`;
+  training = false;
+}
+
+$("learn").addEventListener("click", () => { training = false; requestAnimationFrame(learn); });
+$("embedded").addEventListener("click", () => {
+  training = false; losses = []; w.pretrained(); evaluate(); draw();
+  $("status").textContent = `Embedded weights, ${group(w.init())} bytes.`;
+});
+$("x").addEventListener("input", draw);
+addEventListener("resize", draw);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+
+(async () => {
+  w = await loadModule("sine");
+  const bytes = w.init();
+  $("bytes").textContent = group(bytes);
+  $("status").textContent = `Embedded weights, ${group(bytes)} bytes.`;
+  refs = xs.map(Math.sin);
+  evaluate(); draw();
+})().catch(fail);
+</script>
+</body>
+</html>

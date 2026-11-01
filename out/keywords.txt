@@ -1,0 +1,16 @@
+20 recordings, trained in 167 ms
+
+heard left    84 %  (10 µs)
+heard no     100 %  (4 µs)
+heard left    97 %  (8 µs)
+heard right  100 %  (4 µs)
+heard yes    100 %  (7 µs)
+heard no     100 %  (5 µs)
+heard left    99 %  (6 µs)
+heard right  100 %  (7 µs)
+heard yes    100 %  (6 µs)
+heard no     100 %  (4 µs)
+heard left    99 %  (6 µs)
+heard right   98 %  (5 µs)
+
+11/12 correct (expected: yes no left right, three times)

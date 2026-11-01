@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Step 3: real signals</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header class="top">
+  <a href="index.html">Burn without std</a>
+  <nav aria-label="Steps">
+    <a href="sine.html"><b>1</b>Inference</a>
+    <a href="gesture.html"><b>2</b>Training</a>
+    <a href="keywords.html" aria-current="page"><b>3</b>Signals</a>
+    <a href="tinystories.html"><b>4</b>Language model</a>
+  </nav>
+  </header>
+  <p class="step">Step 3 of 4 · Real signals</p>
+  <h1>Teach it four words.</h1>
+  <p class="lede">Five recordings per word, trained right here, then it listens. The spectrogram below is what
+    the no_std Rust sees: 16 log-mel bands every 20 ms, words in blue. On a Pico 2 the audio would come from an
+    I2S microphone. Nothing leaves this page.</p>
+  <section>
+    <h2>Audio</h2>
+    <div class="row">
+      <button id="mic" class="primary">Use microphone</button>
+      <button id="sample">Use the sample voice</button>
+      <span class="note" id="status">Pick a source.</span>
+    </div>
+    <canvas id="spectrogram" style="margin-top:12px" aria-label="Log-mel spectrogram of the last three seconds"></canvas>
+  </section>
+  <section>
+    <h2>1. Say each word five times. Press, then speak within 1.5 seconds.</h2>
+    <div class="cards" id="words"></div>
+  </section>
+  <section>
+    <h2>2. Train on this device</h2>
+    <div class="row">
+      <button id="train" class="primary" disabled>Train</button>
+      <button id="reset">Start over</button>
+      <span class="note" id="progress">Record three of two words first.</span>
+    </div>
+  </section>
+  <section class="split">
+    <div>
+      <h2>3. Speak</h2>
+      <div class="row" style="margin-bottom:12px">
+        <button id="play" disabled>Play a sample sentence</button>
+        <span class="note">Twelve unseen recordings, through your speakers and the recognizer.</span>
+      </div>
+      <div class="big" id="heard" aria-live="assertive">…</div>
+    </div>
+    <div class="probs" id="probs"></div>
+  </section>
+  <section class="stats">
+    <div class="stat"><b id="count">0</b><small>recordings</small></div>
+    <div class="stat"><b id="time">…</b><small>training, 15 epochs</small></div>
+    <div class="stat"><b id="final">…</b><small>final loss</small></div>
+    <div class="stat"><b>5 448</b><small>parameters, from scratch</small></div>
+  </section>
+  <p id="error" class="error" hidden></p>
+  <footer><span>Burn 0.22 · <code>#![no_std]</code> · zero imports</span><span>Code: <a href="https://github.com/weinzierl/burn-nostd">github.com/weinzierl/burn-nostd</a></span></footer>
+</main>
+<script src="app.js"></script>
+<script>
+const RATE = 16000, PER_WORD = 5, EPOCHS = 15, CHUNK = 320, HISTORY = 150, MELS = 16;
+const pcm = async (url) => Float32Array.from(new Int16Array(await (await fetch(url)).arrayBuffer()), (x) => x / 32768);
+
+let w, ctx, names = ["yes", "no", "left", "right"], counts = [0, 0, 0, 0];
+let mode = "listen", source = null, trained = false;
+const showProbs = bars($("probs"), names);
+
+function feed(samples) {
+  for (let i = 0; i < samples.length; i += CHUNK) {
+    const c = samples.subarray(i, i + CHUNK);
+    // Allocating may grow (and so replace) the memory buffer: pointer first, view second.
+    const ptr = w.audio(c.length);
+    new Float32Array(w.memory.buffer, ptr, c.length).set(c);
+    if (mode === "record") w.record(c.length);
+    else if (w.listen(c.length) > 0 && trained) heard();
+  }
+}
+
+function heard() {
+  const p = names.map((_, i) => w.probability(i));
+  const best = p.indexOf(Math.max(...p));
+  $("heard").textContent = p[best] > 0.6 ? names[best] : "?";
+  showProbs(p, names);
+}
+
+// Columns are frames, rows are mel bands; frames inside a word in the accent
+// color. One small image per new frame, scaled up: cheap enough for phones.
+const pixels = new ImageData(HISTORY, MELS), small = document.createElement("canvas");
+small.width = HISTORY; small.height = MELS;
+let drawn = -1;
+const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+function drawSpectrogram() {
+  const ptr = w.spectrogram(), rows = w.rows(); // calls first: they may grow memory
+  if (rows !== drawn) {
+    drawn = rows;
+    const data = new Float32Array(w.memory.buffer, ptr, HISTORY * (MELS + 1));
+    const [ink, accent, ground] = [rgb(css("--ink")), rgb(css("--accent")), rgb(css("--ground"))];
+    const shown = Math.min(rows, HISTORY);
+    // Scale to the loudest band shown; 9 natural-log units below it (about 40 dB) is black.
+    let top = -Infinity;
+    for (let r = 0; r < shown; r++) for (let m = 0; m < MELS; m++) top = Math.max(top, data[r * (MELS + 1) + m]);
+    for (let col = 0; col < HISTORY; col++) {
+      const i = col - (HISTORY - shown), r = (rows - shown + i) % HISTORY;
+      for (let m = 0; m < MELS; m++) {
+        const v = i < 0 ? 0 : Math.max(0, Math.min(1, (data[r * (MELS + 1) + m] - top + 9) / 9));
+        const color = i >= 0 && data[r * (MELS + 1) + MELS] ? accent : ink;
+        const at = ((MELS - 1 - m) * HISTORY + col) * 4;
+        for (let c = 0; c < 3; c++) pixels.data[at + c] = ground[c] + (color[c] - ground[c]) * v;
+        pixels.data[at + 3] = 255;
+      }
+    }
+    small.getContext("2d").putImageData(pixels, 0, 0);
+    const { g, width, height } = surface($("spectrogram"), 128);
+    g.imageSmoothingEnabled = false;
+    g.drawImage(small, 0, 0, width, height);
+  }
+  requestAnimationFrame(drawSpectrogram);
+}
+
+$("mic").addEventListener("click", async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
+    ctx ??= new AudioContext();
+    // ScriptProcessor needs no module file; resampling to 16 kHz happens here.
+    const node = ctx.createScriptProcessor(4096, 1, 1), step = ctx.sampleRate / RATE;
+    let pos = 0, carry = new Float32Array(0);
+    node.onaudioprocess = (e) => {
+      const input = e.inputBuffer.getChannelData(0), x = new Float32Array(carry.length + input.length);
+      x.set(carry); x.set(input, carry.length);
+      const out = [];
+      for (; pos + 1 < x.length; pos += step) { const i = Math.floor(pos), f = pos - i; out.push(x[i] * (1 - f) + x[i + 1] * f); }
+      carry = x.slice(Math.floor(pos)); pos -= Math.floor(pos);
+      if (source === "mic") feed(Float32Array.from(out));
+    };
+    ctx.createMediaStreamSource(stream).connect(node);
+    node.connect(ctx.destination);
+    source = "mic";
+    $("status").textContent = `Microphone live, ${group(ctx.sampleRate)} Hz resampled to 16 kHz.`;
+    render();
+  } catch (err) {
+    $("status").textContent = `No microphone (${err.message}). Use the sample voice.`;
+  }
+});
+
+$("sample").addEventListener("click", async () => {
+  source = "sample"; names = ["yes", "no", "left", "right"];
+  w.reset(); counts = [0, 0, 0, 0]; trained = false;
+  const audio = await pcm("enroll.i16");
+  for (let k = 0; k < 20; k++) {
+    mode = "record"; w.record_start(); feed(audio.subarray(k * 24000, (k + 1) * 24000));
+    if (w.record_end(Math.floor(k / 5)) > 0) counts[Math.floor(k / 5)]++;
+  }
+  mode = "listen";
+  $("status").textContent = "Sample voice (espeak-ng): 20 recordings taught. Now train.";
+  render();
+});
+
+$("play").addEventListener("click", async () => {
+  const audio = await pcm("stream.i16");
+  ctx ??= new AudioContext();
+  await ctx.resume();
+  const buffer = ctx.createBuffer(1, audio.length, RATE);
+  buffer.copyToChannel(audio, 0);
+  const player = ctx.createBufferSource();
+  player.buffer = buffer; player.connect(ctx.destination); player.start();
+  const previous = source;
+  source = "playback"; $("play").disabled = true;
+  const t0 = performance.now();
+  let fed = 0;
+  const timer = setInterval(() => {
+    const due = Math.min(audio.length, Math.floor(((performance.now() - t0) / 1000) * RATE));
+    if (due > fed) { feed(audio.subarray(fed, due)); fed = due; }
+    if (fed === audio.length) { clearInterval(timer); feed(new Float32Array(8000)); source = previous; $("play").disabled = false; }
+  }, 20);
+});
+
+function render() {
+  $("words").innerHTML = names.map((n, i) => `
+    <div class="card">
+      <input id="name-${i}" value="${n}" aria-label="Word ${i + 1}" maxlength="16"
+        style="font:inherit;font-size:24px;font-weight:500;border:0;border-bottom:2px solid var(--rule);background:transparent;color:var(--ink);padding:2px 0;width:100%">
+      <div class="dots">${Array.from({ length: PER_WORD }, (_, k) => `<i class="${k < counts[i] ? "on" : ""}"></i>`).join("")}</div>
+      <div class="bar"><div id="rec-${i}"></div></div>
+      <button data-w="${i}" ${source !== "mic" || counts[i] >= PER_WORD || mode === "record" ? "disabled" : ""}>Record</button>
+    </div>`).join("");
+  names.forEach((_, i) => $(`name-${i}`).addEventListener("input", (e) => (names[i] = e.target.value || `word ${i + 1}`)));
+  $("words").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => record(+b.dataset.w)));
+  $("train").disabled = mode === "record" || counts.filter((c) => c >= 3).length < 2;
+  $("play").disabled = !trained;
+  $("count").textContent = counts.reduce((a, b) => a + b, 0);
+}
+
+function record(word) {
+  mode = "record"; w.record_start(); render();
+  const t0 = performance.now();
+  const step = () => {
+    const f = Math.min(1, (performance.now() - t0) / 1500);
+    $(`rec-${word}`).style.width = `${f * 100}%`;
+    if (f < 1) return requestAnimationFrame(step);
+    const frames = w.record_end(word);
+    mode = "listen";
+    if (frames > 0) { counts[word]++; $("status").textContent = `Got “${names[word]}”, ${frames * 20} ms.`; }
+    else $("status").textContent = "No word heard. A little louder or closer, please.";
+    render();
+  };
+  requestAnimationFrame(step);
+}
+
+$("train").addEventListener("click", async () => {
+  $("train").disabled = true;
+  const t0 = performance.now();
+  let loss = 0;
+  for (let e = 1; e <= EPOCHS; e++) {
+    loss = w.train(1);
+    $("progress").textContent = `Epoch ${e} of ${EPOCHS}, loss ${loss.toFixed(3)}`;
+    await frame();
+  }
+  $("time").textContent = `${Math.round(performance.now() - t0)} ms`;
+  $("final").textContent = loss.toFixed(3);
+  $("progress").textContent = "Trained. Say one of your words.";
+  trained = true; render();
+});
+
+$("reset").addEventListener("click", () => {
+  w.reset(); counts = [0, 0, 0, 0]; trained = false; mode = "listen";
+  $("heard").textContent = "…"; showProbs([]);
+  $("time").textContent = $("final").textContent = "…";
+  $("progress").textContent = "Record three of two words first.";
+  render();
+});
+
+(async () => {
+  w = await loadModule("keywords");
+  render(); showProbs([]);
+  requestAnimationFrame(drawSpectrogram);
+})().catch(fail);
+</script>
+</body>
+</html>

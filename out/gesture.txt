@@ -1,0 +1,8 @@
+20 examples, 15 epochs: 13 ms, loss 0.032
+
+   rest: 25/25 unseen windows
+  shake: 25/25 unseen windows
+ circle: 25/25 unseen windows
+  punch: 25/25 unseen windows
+
+accuracy 100/100, 5 µs per classification

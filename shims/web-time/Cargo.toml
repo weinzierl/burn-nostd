@@ -1,0 +1,10 @@
+[package]
+name = "web-time"
+# Must match the version Burn's dependency graph asks for so [patch] applies.
+version = "1.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+description = "no_std stand-in for web-time: Instant driven by an optional clock hook"
+
+[dependencies]

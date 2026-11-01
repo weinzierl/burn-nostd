@@ -1,0 +1,12 @@
+[package]
+name = "gesture"
+description = "Step 2: training on the device"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+burn = { workspace = true, features = ["flex", "autodiff"] }
+adam.workspace = true
+libm.workspace = true

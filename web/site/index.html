@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Burn without std</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .steps { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 24px; row-gap: 32px; }
+  .steps a { display: grid; gap: 8px; align-content: start; border-top: 2px solid var(--ink); padding-top: 12px; color: var(--ink); text-decoration: none; }
+  .steps img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: top; border: 1px solid var(--rule); }
+  .steps .n { color: var(--ink); font-size: 64px; font-weight: 700; line-height: 1; letter-spacing: -0.04em; }
+  .steps b { font-size: 22px; font-weight: 500; }
+  .steps span { color: var(--muted); }
+  .steps a:hover b, .steps a:focus-visible b { color: var(--accent); }
+  @media (max-width: 900px) { .steps { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Machine learning without std.</h1>
+  <p class="lede">Four small Burn programs, from inference to on-device training to a pretrained language model.
+    The same <code>#![no_std]</code> Rust runs here as WebAssembly with zero imports, on the desktop and on an
+    emulated Cortex-M33 with the 520 KiB of RAM of a Raspberry Pi Pico 2.</p>
+  <nav class="steps" aria-label="Steps">
+    <a href="sine.html"><span class="n">1</span><img src="img/sine.png" alt=""><b>Inference</b><span>A 321-parameter model approximates sin(x). Watch it learn.</span></a>
+    <a href="gesture.html"><span class="n">2</span><img src="img/gesture.png" alt=""><b>Training on the device</b><span>Learns your gestures from a phone’s motion sensor.</span></a>
+    <a href="keywords.html"><span class="n">3</span><img src="img/keywords.png" alt=""><b>Real signals</b><span>Learns four spoken words from five recordings each.</span></a>
+    <a href="tinystories.html"><span class="n">4</span><img src="img/tinystories.png" alt=""><b>A pretrained LLM</b><span>TinyStories 260K writes stories, weights used in place.</span></a>
+  </nav>
+  <footer><span>Burn 0.22 · <code>#![no_std]</code> · zero imports</span><span>Code: <a href="https://github.com/weinzierl/burn-nostd">github.com/weinzierl/burn-nostd</a></span></footer>
+</main>
+</body>
+</html>

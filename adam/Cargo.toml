@@ -1,0 +1,11 @@
+[package]
+name = "adam"
+description = "Adam for Burn modules without std"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+burn = { workspace = true, features = ["autodiff"] }
+libm.workspace = true

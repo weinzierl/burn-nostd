@@ -1,0 +1,43 @@
+[package]
+name = "desktop"
+description = "The four steps as no_std desktop programs: libc instead of std"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+# no_std programs with their own panic handler: the test harness needs std.
+autobins = false
+
+[lib]
+test = false
+doctest = false
+
+[dependencies]
+sine = { path = "../1-sine" }
+gesture = { path = "../2-gesture" }
+keywords = { path = "../3-keywords" }
+tinystories = { path = "../4-tinystories" }
+adam.workspace = true
+burn = { workspace = true, features = ["autodiff", "store"] }
+libc = { version = "0.2", default-features = false }
+libm.workspace = true
+
+[[bin]]
+name = "sine"
+test = false
+
+[[bin]]
+name = "sine-train"
+test = false
+
+[[bin]]
+name = "gesture"
+test = false
+
+[[bin]]
+name = "keywords"
+test = false
+
+[[bin]]
+name = "tinystories"
+test = false

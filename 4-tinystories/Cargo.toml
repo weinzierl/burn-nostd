@@ -1,0 +1,13 @@
+[package]
+name = "tinystories"
+description = "Step 4: a pretrained language model, weights used in place"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# "store" enables cubecl's shared-bytes, needed for tensors that borrow flash.
+burn = { workspace = true, features = ["flex", "store"] }
+bytes = { version = "1", default-features = false }
+libm.workspace = true

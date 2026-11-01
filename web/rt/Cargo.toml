@@ -1,0 +1,10 @@
+[package]
+name = "rt"
+description = "Allocator, panic handler and module state for no_std WebAssembly"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+dlmalloc = { version = "0.2", features = ["global"] }

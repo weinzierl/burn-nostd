@@ -1,0 +1,29 @@
+name: CI
+on: [push, pull_request]
+
+# rustup reads rust-toolchain.toml: toolchain and targets install themselves.
+jobs:
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: cargo test --release
+      - run: cargo sine && cargo gesture && cargo keywords && cargo tinystories
+
+  embedded:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: sudo apt-get update && sudo apt-get install -y qemu-system-arm
+      - name: Pico 2 firmware builds
+        working-directory: pico2
+        run: cargo build --release
+      - name: Same code paths pass on an emulated Cortex-M33
+        working-directory: qemu
+        run: for step in sine gesture keywords tinystories; do cargo run --release --bin $step; done
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: cargo web --out _site

@@ -1,0 +1,10 @@
+[package]
+name = "wasm-bindgen-futures"
+# Must satisfy cubecl-environment's "0.4.45" requirement so [patch] applies.
+version = "0.4.79"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+description = "no_std stand-in for wasm-bindgen-futures: spawn_local polls to completion"
+
+[dependencies]
