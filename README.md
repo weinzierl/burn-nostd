@@ -3,11 +3,11 @@
 Machine learning in four steps, each one `#![no_std]` Rust on
 [Burn](https://burn.dev) 0.22, each one running on the desktop, in the browser
 and on an emulated Cortex-M33 (QEMU), and built as Raspberry Pi Pico 2
-firmware (not yet tested on a board).
+firmware (step 4 has run on an RP2350 board: 4.3 tokens/s, the same text as in QEMU).
 
 **Try it in the browser: [weinzierl.github.io/burn-nostd](https://weinzierl.github.io/burn-nostd/)**
 
-| Step | Shows | Desktop | Browser | Pico 2 (not yet run) |
+| Step | Shows | Desktop | Browser | Pico 2 (step 4 ran on an RP2350 board) |
 |---|---|---|---|---|
 | [1 · sine](1-sine) | inference with embedded weights | `cargo sine` | [demo](https://weinzierl.github.io/burn-nostd/sine.html) | LED breathes with the model |
 | [2 · gesture](2-gesture) | training on the device | `cargo gesture` | [demo](https://weinzierl.github.io/burn-nostd/gesture.html) | learns gestures from an IMU |
@@ -74,7 +74,7 @@ cargo run --release --bin sine     # also gesture, keywords, tinystories
 
 No probe at all? `tinystories-usb` writes the stories to the board's own USB
 port, as a serial device, and touches no pins, so it is meant for any RP2350
-board with USB (also not yet run on one). Make a UF2 file, hold BOOTSEL (on
+board with USB (it ran on a Waveshare RP2350-Touch-LCD-3.5, see `out/board-tinystories-usb.txt`). Make a UF2 file, hold BOOTSEL (on
 some boards: BOOT) while resetting, and copy the file to the drive that appears:
 
 ```sh
@@ -89,7 +89,8 @@ Then open the port in a terminal: `screen /dev/cu.usbmodem*` on macOS,
 
 `tinystories-lcd` is the same for the Waveshare RP2350-Touch-LCD-3.5, with
 the stories also on its 480 x 320 screen from power-up (pins and panel setup
-from Waveshare's example code). Build and flash it the same way.
+from Waveshare's example code). Build and flash it the same way. It ran on that board:
+`out/board-tinystories-lcd.txt` is what it wrote to USB at the same time.
 
 No board? The same code runs on an emulated Cortex-M33 with the same memory
 budget (needs `qemu-system-arm`):

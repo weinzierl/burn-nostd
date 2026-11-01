@@ -1,0 +1,20 @@
+ball. They like to play with their friends and sell them.
+"Look, tree!" Lily says.
+"Wow, that's my parents!" Ben says. "Yes, Mom. We see a big b
+124 tokens in 29039 ms, 28893 ms of it in the model: 4.2 tokens/s, heap 183356 bytes
+
+burn-tinystories-lcd
+1056540 bytes of weights in flash, heap 183324 bytes
+
+Once upon a time, there was a little girl named Lily. She loved to play outside in the park. One day, she saw a big, red ball. She wanted to play with it, but it was too high.
+Lily's mom said, "Lily, let's go to the park." Lily was sad and didn't know what to do. She said, "I want to play with your ball, but I can't find
+124 tokens in 28990 ms, 28817 ms of it in the model: 4.3 tokens/s, heap 183340 bytes
+
+Lily and Ben are playing with their toys. Mommy are very dangerous. She has a flag to make her feel making sick and even them else. She did not want to see how to reach a bird.
+Lily said, "Hello, circle. Let's go!" Ben said, "I am complete you," Lily pu
+124 tokens in 29050 ms, 28893 ms of it in the model: 4.2 tokens/s, heap 183356 bytes
+
+The little dog are friends. They like to do friends. One day, they found a big dog playing with a messy tree. The bird was a little bird outside. The bird felt a small, soft dog named Max.
+Max was very excited to eat it. So, Max was very happy. He let the bird fly. Max liked the pretty m
+124 tokens in 29058 ms, 28893 ms of it in the model: 4.2 tokens/s, heap 183356 bytes
+

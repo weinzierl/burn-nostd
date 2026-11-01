@@ -7,7 +7,8 @@ Usage: python3 board_log.py [PORT] [OUT] [STORIES]
 
 Opening the port starts a session, and the board begins again with story 1
 (tinystories-lcd after the story it is writing). The text is saved as it
-arrives; the program stops after STORIES stories, or on Ctrl-C.
+arrives; the program stops after STORIES stories counted from the session's
+header (so the end of an earlier story does not count), or on Ctrl-C.
 """
 import errno
 import os
@@ -16,6 +17,7 @@ import sys
 import tty
 
 STORY_END = re.compile(rb"^\d+ tokens in \d+ ms")
+HEADER = re.compile(rb"bytes of weights in flash")
 
 
 def main():
@@ -28,7 +30,7 @@ def main():
         hint = "; on Linux: sudo usermod -aG dialout $(id -un), then log in again" if e.errno == errno.EACCES else ""
         sys.exit(f"cannot open {port}: {e.strerror}{hint}")
     tty.setraw(fd)  # no echo, no line-end translation
-    done, partial = 0, b""
+    done, partial, started = 0, b"", False
     with open(out, "wb") as f:
         try:
             while done < stories:
@@ -40,7 +42,11 @@ def main():
                 sys.stdout.buffer.write(data)
                 sys.stdout.flush()
                 *lines, partial = (partial + data).split(b"\n")
-                done += sum(1 for line in lines if STORY_END.match(line))
+                for line in lines:
+                    if HEADER.search(line):
+                        started, done = True, 0
+                    elif started and STORY_END.match(line):
+                        done += 1
         except KeyboardInterrupt:
             pass
     print(f"\nsaved {out}: {done} complete stories")
