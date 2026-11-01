@@ -65,7 +65,7 @@
 <script src="app.js"></script>
 <script>
 const NAMES = ["Rest", "Shake", "Circle", "Punch"], PER_CLASS = 5, EPOCHS = 15, HZ = 50;
-let w, sensor = null, counts = [0, 0, 0, 0], trained = false, recording = false, losses = [];
+let w, sensor = null, counts = [0, 0, 0, 0], trained = false, recording = false, training = false, losses = [];
 const trace = [], showProbs = bars($("probs"), NAMES);
 
 function onMotion(e) {
@@ -98,10 +98,11 @@ function simulate(c) {
 }
 
 function tick() {
+  if (broken) return;
   const sim = parseInt($("sim").value, 10), s = sim >= 0 ? simulate(sim) : sensor;
   if (!s) return;
   $("status").textContent = sim >= 0 ? `Simulating “${NAMES[sim].toLowerCase()}”.` : "Motion sensor live.";
-  w.push(...s);
+  try { w.push(...s); } catch (err) { return crashed(err); }
   trace.push(s);
   if (trace.length > HZ) trace.shift();
 }
@@ -111,36 +112,40 @@ function render() {
     <div class="card"><b>${n}</b>
       <div class="dots">${Array.from({ length: PER_CLASS }, (_, k) => `<i class="${k < counts[i] ? "on" : ""}"></i>`).join("")}</div>
       <div class="bar"><div id="rec-${i}"></div></div>
-      <button data-c="${i}" ${counts[i] >= PER_CLASS || recording ? "disabled" : ""}>Record ${n.toLowerCase()}</button>
+      <button data-c="${i}" ${counts[i] >= PER_CLASS || recording || training ? "disabled" : ""}>Record ${n.toLowerCase()}</button>
     </div>`).join("");
   $("classes").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => record(+b.dataset.c)));
-  $("train").disabled = recording || counts.filter((c) => c >= 3).length < 2;
+  $("train").disabled = recording || training || counts.filter((c) => c >= 3).length < 2;
   $("examples").textContent = counts.reduce((a, b) => a + b, 0);
 }
 
 function record(c) {
   if (!sensor && parseInt($("sim").value, 10) < 0) { $("status").textContent = "Start the sensor or pick a simulated gesture first."; return; }
   recording = true; render();
-  const t0 = performance.now();
+  const t0 = performance.now(), g = generation;
   const step = () => {
+    if (!current(g) || broken) return; // reset meanwhile: drop this recording
     const f = Math.min(1, (performance.now() - t0) / 1000);
     $(`rec-${c}`).style.width = `${f * 100}%`;
     if (f < 1) return requestAnimationFrame(step);
-    w.enroll(c); counts[c]++; recording = false; render();
+    try { w.enroll(c); } catch (err) { return crashed(err); }
+    counts[c]++; recording = false; render();
   };
   requestAnimationFrame(step);
 }
 
 $("train").addEventListener("click", async () => {
-  $("train").disabled = true;
-  const t0 = performance.now();
+  training = true; render();
+  const t0 = performance.now(), g = generation;
   losses = [];
   for (let e = 1; e <= EPOCHS; e++) {
-    losses.push(w.train(1));
+    try { losses.push(w.train(1)); } catch (err) { return crashed(err); }
     chart($("loss"), 64, losses, true);
     $("progress").textContent = `Epoch ${e} of ${EPOCHS}, loss ${losses.at(-1).toFixed(3)}`;
     await frame();
+    if (!current(g)) return; // Start over pressed: the examples are gone
   }
+  training = false;
   $("time").textContent = `${Math.round(performance.now() - t0)} ms`;
   $("final").textContent = losses.at(-1).toFixed(3);
   $("progress").textContent = "Trained. More examples and another round improve it.";
@@ -148,7 +153,9 @@ $("train").addEventListener("click", async () => {
 });
 
 $("reset").addEventListener("click", () => {
-  w.reset(); counts = [0, 0, 0, 0]; trained = false; losses = [];
+  if (broken) return;
+  generation++;
+  w.reset(); counts = [0, 0, 0, 0]; trained = false; recording = false; training = false; losses = [];
   $("prediction").textContent = "…"; showProbs([]);
   for (const id of ["time", "final", "latency"]) $(id).textContent = "…";
   $("progress").textContent = "Record three examples of two gestures first.";
@@ -157,11 +164,11 @@ $("reset").addEventListener("click", () => {
 });
 
 function classify() {
-  if (!trained || recording) return;
+  if (!trained || recording || broken) return;
   // Browsers round timers to 0.1 ms: average 20 runs.
   const t0 = performance.now();
   let n = 0;
-  for (let i = 0; i < 20; i++) n = w.classify();
+  try { for (let i = 0; i < 20; i++) n = w.classify(); } catch (err) { return crashed(err); }
   const us = ((performance.now() - t0) * 1000) / 20;
   if (!n) return;
   const p = Array.from({ length: n }, (_, i) => w.probability(i));

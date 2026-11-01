@@ -19,6 +19,20 @@ function fail(error) {
   $("error").textContent = `WebAssembly did not start: ${error.message}`;
 }
 
+// Every reset bumps the generation; work that awaits (training loops, recordings,
+// playback) remembers the one it started in and stops when it has changed.
+let generation = 0;
+const current = (g) => g === generation;
+
+// A Rust panic traps the module and leaves it unusable: say so once, stop calling it.
+let broken = false;
+function crashed(error) {
+  if (broken) return;
+  broken = true;
+  $("error").hidden = false;
+  $("error").textContent = `The WebAssembly module stopped (${error.message}). Reload the page.`;
+}
+
 // A cleared 2D context in CSS pixels, at the screen's pixel density.
 function surface(canvas, height) {
   const dpr = devicePixelRatio || 1, width = canvas.clientWidth;

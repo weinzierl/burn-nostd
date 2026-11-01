@@ -20,7 +20,7 @@
   <p class="step">Step 4 of 4 · A pretrained language model</p>
   <h1>A language model that fits a microcontroller.</h1>
   <p class="lede">Karpathy’s TinyStories 260K, the unchanged llama2.c checkpoint, on Burn in no_std WebAssembly.
-    In the Raspberry Pi Pico 2 firmware the same crate reads the 1 MB of weights straight from flash (tested in QEMU, not yet on a board).
+    On a microcontroller the same crate reads the 1 MB of weights straight from flash: 4.3 tokens per second on a real RP2350 board, the chip of the Raspberry Pi Pico 2.
     At temperature 0 it writes the same text as llama2.c (checked for 80 steps). Right: what the model weighed for the latest token.</p>
   <section style="display:grid;grid-template-columns:repeat(12,1fr);column-gap:24px;row-gap:16px;align-items:end">
     <div style="grid-column:1/span 6"><label for="prompt">Story start</label><input id="prompt" type="text" value="Once upon a time" maxlength="120"></div>
@@ -46,8 +46,10 @@
 <script src="app.js"></script>
 <script>
 let w, busy = false;
-const decoder = new TextDecoder(), showCandidates = bars($("candidates"), ["", "", "", "", ""]);
-const text = (len) => { const ptr = w.output(); return decoder.decode(new Uint8Array(w.memory.buffer, ptr, len)); };
+const showCandidates = bars($("candidates"), ["", "", "", "", ""]);
+const bytes = (len) => new Uint8Array(w.memory.buffer, w.output(), len);
+// Characters missing from the vocabulary come as single UTF-8 bytes, one token each:
+// the story is decoded as one stream (in write), so a character appears once all its bytes are in.
 
 $("temp").addEventListener("input", () => ($("temp-value").textContent = parseFloat($("temp").value).toFixed(1)));
 $("show-tokens").addEventListener("change", (e) => $("story").classList.toggle("tokens", e.target.checked));
@@ -55,8 +57,10 @@ $("show-tokens").addEventListener("change", (e) => $("story").classList.toggle("
 function candidates() {
   const names = [], probs = [];
   for (let i = 0; i < 5; i++) {
-    const raw = text(w.candidate_text(i));
-    names.push(raw.includes("<s>") ? "end of story" : raw.replace(/\n/g, "↵").replace(/^ +$/, "␣"));
+    const b = bytes(w.candidate_text(i)), raw = new TextDecoder().decode(b);
+    // A lone byte of a longer character: show the byte, not a replacement character.
+    const name = b.length === 1 && b[0] >= 0x80 ? `byte 0x${b[0].toString(16).toUpperCase()}` : raw;
+    names.push(name.includes("<s>") ? "end of story" : name.replace(/\n/g, "↵").replace(/^ +$/, "␣"));
     probs.push(w.candidate_probability(i));
   }
   showCandidates(probs, names);
@@ -67,9 +71,10 @@ async function write() {
   busy = true; $("go").disabled = true;
   const story = $("story");
   story.replaceChildren();
-  const bytes = new TextEncoder().encode($("prompt").value);
-  const ptr = w.prompt(bytes.length); // may grow memory: pointer before view
-  new Uint8Array(w.memory.buffer, ptr, bytes.length).set(bytes);
+  const input = new TextEncoder().encode($("prompt").value);
+  const ptr = w.prompt(input.length); // may grow memory: pointer before view
+  new Uint8Array(w.memory.buffer, ptr, input.length).set(input);
+  const decoder = new TextDecoder();
   w.start(parseFloat($("temp").value), (Math.random() * 2 ** 31) | 1);
 
   const t0 = performance.now();
@@ -83,7 +88,7 @@ async function write() {
     const fromPrompt = w.reading_prompt(), len = w.step();
     if (len < 0) break;
     const piece = document.createElement("span");
-    piece.textContent = text(len);
+    piece.textContent = decoder.decode(bytes(len), { stream: true });
     if (fromPrompt && w.reading_prompt()) piece.className = "prompt-text"; else n++;
     story.append(piece);
     if (n % 4 === 0) { show(); await frame(); }
@@ -92,14 +97,15 @@ async function write() {
   busy = false; $("go").disabled = false;
 }
 
-$("go").addEventListener("click", write);
-$("prompt").addEventListener("keydown", (e) => e.key === "Enter" && write());
+const run = () => { if (!broken) write().catch(crashed); };
+$("go").addEventListener("click", run);
+$("prompt").addEventListener("keydown", (e) => e.key === "Enter" && run());
 
 (async () => {
   w = await loadModule("tinystories");
   $("bytes").textContent = group(w.init());
   $("go").disabled = false;
-  write();
+  run();
 })().catch(fail);
 </script>
 </body>

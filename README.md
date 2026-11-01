@@ -92,6 +92,8 @@ the stories also on its 480 x 320 screen from power-up (pins and panel setup
 from Waveshare's example code). Build and flash it the same way. It ran on that board:
 `out/board-tinystories-lcd.txt` is what it wrote to USB at the same time.
 
+![tinystories-lcd on a Waveshare RP2350-Touch-LCD-3.5 starting a story](media/board.gif)
+
 No board? The same code runs on an emulated Cortex-M33 with the same memory
 budget (needs `qemu-system-arm`):
 

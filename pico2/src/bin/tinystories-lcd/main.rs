@@ -104,7 +104,7 @@ async fn main(_spawner: Spawner) {
         let prompt = PROMPTS[round % PROMPTS.len()];
         let story = format!("story {}, {}", round + 1, if round == 0 { "greedy" } else { "temp 0.8" });
         screen.header(TITLE, &story);
-        screen.footer("writing", "");
+        screen.footer("writing", "weinzierlweb.com");
         screen.new_story();
 
         // The prompt comes back as the first pieces: one per prompt token after BOS.
