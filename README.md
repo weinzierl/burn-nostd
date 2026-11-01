@@ -87,6 +87,10 @@ Then open the port in a terminal: `screen /dev/cu.usbmodem*` on macOS,
 `screen /dev/ttyACM0` on Linux. The official converter is
 `picotool uf2 convert <elf> <uf2> --family rp2350-arm-s`.
 
+`tinystories-lcd` is the same for the Waveshare RP2350-Touch-LCD-3.5, with
+the stories also on its 480 x 320 screen from power-up (pins and panel setup
+from Waveshare's example code). Build and flash it the same way.
+
 No board? The same code runs on an emulated Cortex-M33 with the same memory
 budget (needs `qemu-system-arm`):
 

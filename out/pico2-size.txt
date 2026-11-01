@@ -19,7 +19,12 @@ target/thumbv8m.main-none-eabihf/release/tinystories  :
 .data                   192   536870912
 .bss                 265576   536871104
 target/thumbv8m.main-none-eabihf/release/tinystories-usb  :
-.text               1358496   268435772
-.rodata             1108968   269794288
+.text               1360792   268435772
+.rodata             1108968   269796576
 .data                   192   536870912
 .bss                 271736   536871104
+target/thumbv8m.main-none-eabihf/release/tinystories-lcd  :
+.text               1370552   268435772
+.rodata             1111944   269806336
+.data                   192   536870912
+.bss                 272696   536871104

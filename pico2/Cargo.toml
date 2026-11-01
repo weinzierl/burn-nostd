@@ -19,7 +19,8 @@ embassy-time = { version = "0.5", features = ["defmt", "defmt-timestamp-uptime"]
 embedded-hal-async = "1.0"
 embassy-sync = "0.8"
 embassy-futures = "0.1"
-embassy-usb = { version = "0.6", default-features = false } # tinystories-usb only
+embassy-usb = { version = "0.6", default-features = false } # tinystories-usb and -lcd
+embedded-graphics = "0.8" # tinystories-lcd only
 cortex-m = { version = "0.7.6", features = ["inline-asm"] }
 cortex-m-rt = "0.7"
 embedded-alloc = "0.7"
